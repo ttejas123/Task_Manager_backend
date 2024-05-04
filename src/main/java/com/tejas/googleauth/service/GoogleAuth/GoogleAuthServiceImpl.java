@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.tejas.googleauth.collection.GoogleAuth;
 import com.tejas.googleauth.core.event.Audit.AuditEventPublisher;
 import com.tejas.googleauth.repository.GoogleAuth.GoogleAuthRepository;
+import com.tejas.googleauth.service.Mail.MailService;
 
 import reactor.core.publisher.Mono;
 
@@ -24,6 +25,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     @Autowired
     private GoogleAuthRepository googleAuthRepository;
     
+    @Autowired
+    private MailService mailService;
+    
     private final Environment env;
     public GoogleAuthServiceImpl(Environment env) {
         this.env = env;
@@ -35,6 +39,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     @Override
     public Mono<List<GoogleAuth>> findAll(int skip, int limit) {
+        mailService.sendMail();
         return Mono.just(googleAuthRepository.findAllByFilter(skip, limit));
     }
 
@@ -84,8 +89,10 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                 if(ifUserExist == null) {
                     this.save(googleAuth);
                     eventPublisher.publishGoogleAuthEvent(googleAuth.toString(), googleAuth.get_id());
+                    mailService.sendMail();
                     return Mono.just(googleAuth);
                 } 
+                mailService.sendMail();
                 return Mono.just(ifUserExist);
             } else {
                 // Handle invalid token
