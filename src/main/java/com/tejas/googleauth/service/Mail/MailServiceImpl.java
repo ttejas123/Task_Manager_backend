@@ -17,18 +17,16 @@ public class MailServiceImpl implements MailService {
     private String fromMail;
     
     @Autowired
-    public MailServiceImpl(MailConfiguration mailConfiguration) {
-    }
+    public MailServiceImpl(MailConfiguration mailConfiguration) {}
 
     @Override
-    public void sendMail() {
+    public void sendMail(String to, String subject, String body) {
         try {
             SimpleMailMessage smm = new SimpleMailMessage();
             smm.setFrom(fromMail);
-            smm.setTo("universb43@gmail.com");
-            smm.setSubject("Test Mail Bean");
-            smm.setText("<h1>Hellu</h1>");
-            System.out.println("Hello JI Mail Service is running ");
+            smm.setTo(to);
+            smm.setSubject(subject);
+            smm.setText(body);
             jms.send(smm);
             return;
         } catch(Exception e) {

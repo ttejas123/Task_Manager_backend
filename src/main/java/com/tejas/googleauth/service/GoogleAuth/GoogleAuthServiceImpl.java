@@ -10,6 +10,7 @@ import com.tejas.googleauth.repository.GoogleAuth.GoogleAuthRepository;
 import com.tejas.googleauth.service.Mail.MailService;
 
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
@@ -39,7 +40,6 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     @Override
     public Mono<List<GoogleAuth>> findAll(int skip, int limit) {
-        mailService.sendMail();
         return Mono.just(googleAuthRepository.findAllByFilter(skip, limit));
     }
 
@@ -68,7 +68,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         try {
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), jsonFactory)
-            .setAudience(Collections.singletonList(env.getProperty("CLIENT_ID")))
+            .setAudience(Collections.singletonList("124718215654-m36pmnlhlcfg63ig4034j7c57qpnjlg1.apps.googleusercontent.com"))
             .build();
             GoogleIdToken idToken = verifier.verify(idTokenString);
             if (idToken != null) {
@@ -78,21 +78,25 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                 String email = (String) payload.get("email");
                 String pictureUrl = (String) payload.get("picture");
                 GoogleAuth googleAuth = GoogleAuth.builder()
-                        .google_id_token(idTokenString)
-                        .displayname(name)
-                        .user_id(userId)
-                        .email(email)
-                        .created_at(new Date())
-                        .updated_at(new Date())
-                        .build();
+                .google_id_token(idTokenString)
+                .displayname(name)
+                .user_id(userId)
+                .email(email)
+                .created_at(new Date())
+                .updated_at(new Date())
+                .build();
                 GoogleAuth ifUserExist = this.findByEmail(email).block();
                 if(ifUserExist == null) {
                     this.save(googleAuth);
                     eventPublisher.publishGoogleAuthEvent(googleAuth.toString(), googleAuth.get_id());
-                    mailService.sendMail();
+                    Mono.fromRunnable(() -> mailService.sendMail(googleAuth.getEmail(), googleAuth.getDisplayname() + " welcome aboard", "Hello, \n welcome aboard " + googleAuth.getDisplayname()))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .subscribe();
                     return Mono.just(googleAuth);
                 } 
-                mailService.sendMail();
+                Mono.fromRunnable(() -> mailService.sendMail(googleAuth.getEmail(), googleAuth.getDisplayname() + " welcome aboard", "Hello, \n welcome aboard " + googleAuth.getDisplayname()))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .subscribe();
                 return Mono.just(ifUserExist);
             } else {
                 // Handle invalid token
